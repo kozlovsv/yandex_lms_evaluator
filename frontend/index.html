@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вычислитель выражений</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body>
+    <div id="app">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="#">Распределенный вычислитель выражений</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav">
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" @click="showExpressions">Выражения</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" @click="showSettings">Настройки</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" @click="showAgents">Вычислители</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container mt-4" v-if="currentPage === 'expressions'">
+            <div class="p-3 mb-2 bg-secondary text-white">
+                <h2>Выражения</h2>
+            </div>
+            <h4>Добавить выражение:</h4>
+            <form @submit.prevent="addExpression">
+                <div class="input-group mb-3">
+                    <input type="text" ref="input" autofocus class="form-control" v-model="expressionValue"
+                        placeholder="Введите выражение">
+                    <input type="submit" class="btn btn-primary" value="Добавить">
+                </div>
+            </form>
+
+            <h4>Список выражений:</h4>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th scope="col">Стаус</th>
+                        <th scope="col">Выражение</th>
+                        <th scope="col">Дата добавления</th>
+                        <th scope="col">Дата результата</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="expression in expressions" :key="expression.id">
+                        <td>
+                            <span v-if="expression.status === 0" class="badge bg-info">Новый</span>
+                            <span v-if="expression.status === 1" class="badge bg-warning text-dark">В работе</span>
+                            <span v-if="expression.status === 2" class="badge bg-danger">Ошибка</span>
+                            <span v-if="expression.status === 3" class="badge bg-success">Готово</span>
+                        </td>
+                        <td>
+                            <span>{{ expression.value }} = </span>
+                            <span v-if="expression.status === 3">{{ expression.result }}</span>
+                            <span v-if="expression.status !== 3">?</span>
+                        </td>
+                        <td>{{ expression.created_at | formatDate}}</td>
+                        <td>{{ expression.updated_at | formatDate}}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+
+        <div class="container mt-4" v-else-if="currentPage === 'settings'">
+            <div class="p-3 mb-2 bg-secondary text-white">
+                <h2>Настройки</h2>
+            </div>
+            <form>
+                <div class="mb-3">
+                    <label for="plusTime">Время операции плюс</label>
+                    <input type="number" class="form-control" id="plusTime" v-model.number="settings.op_plus">
+                </div>
+                <div class="mb-3">
+                    <label for="minusTime">Время операции минус</label>
+                    <input type="number" class="form-control" id="minusTime" v-model.number="settings.op_minus">
+                </div>
+                <div class="mb-3">
+                    <label for="multiplyTime">Время операции умножить</label>
+                    <input type="number" class="form-control" id="multiplyTime" v-model.number="settings.op_mult">
+                </div>
+                <div class="mb-3">
+                    <label for="divideTime">Время операции делить</label>
+                    <input type="number" class="form-control" id="divideTime" v-model.number="settings.op_div">
+                </div>
+                <div class="mb-3">
+                    <label for="timeout">Время таймаута сервера</label>
+                    <input type="number" class="form-control" id="timeout" v-model.number="settings.op_agent_timeout">
+                </div>
+                <div class="mb-3">
+                    <label for="timeout">Время удаления сервера</label>
+                    <input type="number" class="form-control" id="timeout"
+                        v-model.number="settings.op_agent_deletetimeout">
+                </div>
+                <button type="submit" class="btn btn-primary" @click="saveSettings">Сохранить</button>
+            </form>
+        </div>
+
+
+        <div class="container mt-4" v-if="currentPage === 'agents'">
+            <div class="p-3 mb-2 bg-secondary text-white">
+                <h2>Вычислители</h2>
+            </div>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th scope="col">Стаус</th>
+                        <th scope="col">Имя</th>
+                        <th scope="col">Дата пинга</th>
+                        <th scope="col">Текущая операция</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="agent in agents" :key="agent.name">
+                        <td>
+                            <span v-if="agent.status === 0" class="badge bg-success">Работает</span>
+                            <span v-if="agent.status === 1" class="badge bg-danger">Не доступен</span>
+                        </td>
+                        <td>{{ agent.name }}</td>
+                        <td>{{ agent.last_ping | formatDate}}</td>
+                        <td>{{ agent.current_op}}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Vue.js CDN -->
+    <script src="https://unpkg.com/vue@2.6.14/dist/vue.js"></script>
+    <!-- Axios CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const baseUrl = 'http://127.0.0.1/api/'
+
+        Vue.filter('formatDate', function (value) {
+            if (value) {
+                return new Date(value).toLocaleString('ru-RU', { timeZone: 'UTC' });
+            }
+        });
+
+        new Vue({
+            el: '#app',
+            data: {
+                currentPage: 'expressions',
+                expressionValue: '',
+                expressions: [],
+                agents: [],
+                settings: {
+                    op_plus: null,
+                    op_minus: null,
+                    op_mult: null,
+                    op_div: null,
+                    op_agent_timeout: null,
+                    op_agent_deletetimeout: null
+                }
+            },
+            mounted() {
+                this.getSettings();
+                this.getExpressionList();
+                this.getAgentList();
+                setInterval(this.getExpressionList, 3000);
+                setInterval(this.getAgentList, 3000);
+            },
+            methods: {
+                showExpressions() {
+                    this.currentPage = 'expressions';
+                    this.getExpressionList();
+                },
+                showAgents() {
+                    this.currentPage = 'agents';
+                    this.getAgentList();
+                },
+                showSettings() {
+                    this.currentPage = 'settings';
+                    this.getSettings();
+                },
+                getExpressionList() {
+                    const url = baseUrl + 'expressions';
+                    axios.get(url)
+                        .then(response => {
+                            this.expressions = response.data;
+                        })
+                        .catch(error => {
+                            console.log(error);
+                        });
+                },
+                getAgentList() {
+                    const url = baseUrl + 'agents';
+                    axios.get(url)
+                        .then(response => {
+                            this.agents = response.data;
+                        })
+                        .catch(error => {
+                            console.log(error);
+                        });
+                },
+                getSettings() {
+                    const url = baseUrl + 'settings';
+                    axios.get(url)
+                        .then(response => {
+                            this.settings = response.data;
+                        })
+                        .catch(error => {
+                            console.log(error);
+                        });
+                },
+                addExpression() {
+                    const url = baseUrl + 'expressions';
+                    const data = {
+                        value: this.expressionValue,
+                        idempotency_key: generateIdempotencyKey()
+                    };
+                    axios.post(url, data, { headers: { 'content-type': 'application/json' } })
+                        .then(response => {
+                            console.log(response);
+                            this.getExpressionList();
+                            this.expressionValue = '';
+                        })
+                        .catch(error => {
+                            console.log(error);
+                        });
+                },
+                saveSettings() {
+                    const url = baseUrl + 'settings';
+                    axios.post(url, this.settings, { headers: { 'content-type': 'application/json' } })
+                        .then(response => {
+                            alert('Сохранено!');
+                        })
+                        .catch(error => {
+                            console.log(error);
+                        });
+                }
+            },
+        });
+
+        function generateIdempotencyKey() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+                var r = (Math.random() * 16) | 0,
+                    v = c === 'x' ? r : (r & 0x3) | 0x8;
+                return v.toString(16);
+            });
+        }
+    </script>
+</body>
+
+</html>

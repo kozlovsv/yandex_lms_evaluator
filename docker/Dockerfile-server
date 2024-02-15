@@ -1,0 +1,21 @@
+FROM golang:1.21-alpine as builder
+
+WORKDIR /user/local/src
+
+RUN apk --no-cache add gcc musl-dev bash mariadb-client
+
+# dependencies
+COPY ["server/go.mod", "server/go.sum", "./"]
+RUN go mod download
+
+## Add the wait script to the image
+COPY --from=ghcr.io/ufoscout/docker-compose-wait:latest /wait /wait
+
+# build
+COPY server ./
+RUN go build -o ./bin/app cmd/main.go
+
+# Runner
+#FROM alpine as runner
+#COPY --from=builder /user/local/src/bin/app /
+CMD /wait && /user/local/src/bin/app
