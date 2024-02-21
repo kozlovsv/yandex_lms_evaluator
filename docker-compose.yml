@@ -41,17 +41,17 @@ services:
       - WAIT_HOSTS=server:8001
     depends_on:
       - nginx
-  agent2:
-    container_name: ${PROJECT_NAME}-agent2
-    build:
-      context: .
-      dockerfile: ./docker/Dockerfile-agent
-    environment:
-      - EVAL_GO_POOL_SIZE=2
-      - EVAL_GO_AGENT_NAME=Agent2  
-      - WAIT_HOSTS=server:8001
-    depends_on:
-      - nginx    
+  #agent2:
+  #  container_name: ${PROJECT_NAME}-agent2
+  #  build:
+  #    context: .
+  #    dockerfile: ./docker/Dockerfile-agent
+  #  environment:
+  #    - EVAL_GO_POOL_SIZE=2
+  #    - EVAL_GO_AGENT_NAME=Agent2  
+  #    - WAIT_HOSTS=server:8001
+  #  depends_on:
+  #    - nginx    
   nginx:
     image: nginx:1.21-alpine
     container_name: ${PROJECT_NAME}-nginx
