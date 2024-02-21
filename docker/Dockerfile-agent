@@ -15,7 +15,6 @@ RUN go build -o ./bin/app cmd/main.go
 # Runner
 FROM alpine as runner
 COPY --from=builder /user/local/src/bin/app /
-## Add the wait script to the image
 COPY --from=ghcr.io/ufoscout/docker-compose-wait:latest /wait /wait
 
 CMD /wait && /app
