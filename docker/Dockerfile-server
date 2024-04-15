@@ -5,7 +5,10 @@ WORKDIR /user/local/src
 RUN apk --no-cache add gcc musl-dev bash mariadb-client
 
 # dependencies
-COPY ["server/go.mod", "server/go.sum", "./"]
+COPY ["server/go.mod", "server/go.sum", "./server/"]
+COPY protos ./protos/
+
+WORKDIR /user/local/src/server
 RUN go mod download
 
 # build
@@ -14,7 +17,8 @@ RUN go build -o ./bin/app cmd/main.go
 
 # Runner
 FROM alpine as runner
-COPY --from=builder /user/local/src/bin/app /
+COPY --from=builder /user/local/src/server/bin/app /
 COPY --from=ghcr.io/ufoscout/docker-compose-wait:latest /wait /wait
+COPY .env /
 
 CMD /wait && /app

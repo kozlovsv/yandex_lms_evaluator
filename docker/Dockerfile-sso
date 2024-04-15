@@ -1,0 +1,21 @@
+FROM golang:1.21-alpine as builder
+
+WORKDIR /user/local/src
+
+RUN apk --no-cache add gcc musl-dev bash mariadb-client
+
+# dependencies
+COPY ["sso/go.mod", "sso/go.sum", "./"]
+RUN go mod download
+
+# build
+COPY sso ./
+RUN go build -o ./bin/app cmd/main.go
+
+# Runner
+FROM alpine as runner
+COPY --from=builder /user/local/src/bin/app /
+COPY --from=ghcr.io/ufoscout/docker-compose-wait:latest /wait /wait
+COPY .env /
+
+CMD /wait && /app

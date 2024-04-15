@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package expression;
+
+// Настройки для генерации Go кода.
+option go_package = "evaluator/protos/pbserver";
+
+service ExpressionService {
+  rpc GetNewExpression (ExpressionRequest) returns (ExpressionResponse) {}
+  rpc SendResult (SendResultRequest) returns (SendResultResponse) {}
+  rpc SendError (SendErrorRequest) returns (SendErrorResponse) {}
+}
+
+message ExpressionRequest {
+  string agentName = 1;
+}
+
+message ExpressionResponse {
+  Task task = 1;
+}
+
+
+message SendResultRequest {
+  string agentName = 1;
+  int32 expressionId = 2;
+  string result = 3;  
+}
+
+message SendResultResponse {
+  bool success = 1;
+}
+
+
+message Task {
+  Expression expression = 1;
+  Settings settings = 2;
+}
+
+message Expression {
+  string value = 1;
+  int32 id = 2;
+}
+
+message Settings {
+  int32 opPlusTime = 1;
+  int32 opMinusTime = 2;
+  int32 opMultTime = 3;
+  int32 opDivTime = 4;
+  int32 opAgentTimeOut = 5;
+}
+
+message SendErrorRequest {
+  string agentName = 1;
+  int32 expressionId = 2;
+  string error = 3;  
+}
+
+message SendErrorResponse {
+  bool success = 1;
+}

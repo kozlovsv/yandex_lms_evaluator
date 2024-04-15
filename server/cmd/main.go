@@ -1,48 +1,60 @@
 package main
 
 import (
-	"log"
-	"net/http"
+	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
 
-	"github.com/kozlovsv/evaluator/server/pkg/checker"
-	"github.com/kozlovsv/evaluator/server/pkg/handlers"
-	"github.com/kozlovsv/evaluator/server/pkg/models"
+	"github.com/kozlovsv/evaluator/server/config"
+	"github.com/kozlovsv/evaluator/server/internal/app"
+)
+
+const (
+	envLocal = "local"
+	envDev   = "dev"
+	envProd  = "prod"
 )
 
 func main() {
-	db, err := models.OpenDB()
-	if err != nil {
-		log.Println("[ERROR]", "connection to DB", err.Error())
-		panic(err)
+	cfg := config.NewConfig()
+
+	log := setupLogger(cfg.Env)
+
+	application := app.New(log, cfg.DB, cfg.GRPCPort)
+
+	go func() {
+		application.Run()
+	}()
+
+	// Graceful shutdown
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
+
+	<-stop
+
+	application.Stop()
+	log.Info("Gracefully stopped")
+}
+
+func setupLogger(env string) *slog.Logger {
+	var log *slog.Logger
+
+	switch env {
+	case envLocal:
+		log = slog.New(
+			slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
+		)
+	case envDev:
+		log = slog.New(
+			slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
+		)
+	case envProd:
+		log = slog.New(
+			slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}),
+		)
 	}
-	defer db.Close()
 
-	expressionStore := *models.NewExpressionStore(db)
-	agentStore := *models.NewAgentStore(db)
-	settingsStore := *models.NewSettingsStore(db)
-
-	//Запускаем проверку задач, и агентов. Если задача долго висит, то возвращаем ее в статус новая, чтобы ее взал другой агент. Если агент долго не доступен то он сначала деактивируется, потом удаляется.
-	settings, err := settingsStore.Get()
-	if err != nil {
-		log.Fatal(err)
-	}
-	checker := checker.NewChecker(expressionStore, agentStore, settings.OpAgentTimeOut, settings.OpAgentTimeOut, settings.OpAgentDeleteTimeOut)
-	defer checker.Close()
-
-	expressionHandler := handlers.NewExpressionHandler(expressionStore)
-
-	mux := http.NewServeMux()
-
-	// Register the routes and handlers
-	mux.HandleFunc("/", handlers.HomeHandler)
-	mux.Handle("/expressions", expressionHandler)
-	mux.Handle("/expressions/", expressionHandler)
-	mux.Handle("/get-new-task", handlers.NewGetNewExpressionHandler(expressionStore, settingsStore, agentStore))
-	mux.Handle("/set-result", handlers.NewSetResultHandlerr(expressionStore, agentStore))
-	mux.Handle("/set-error", handlers.NewSetErrorHandlerr(expressionStore, agentStore))
-	mux.Handle("/settings", handlers.NewSettingsHandler(settingsStore))
-	mux.Handle("/agents", handlers.NewAgentHandler(agentStore))
-	log.Println("Server START!")
-	http.ListenAndServe(":8001", mux)
-	log.Println("Server END!")
+	return log
 }

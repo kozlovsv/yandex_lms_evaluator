@@ -17,47 +17,83 @@ services:
     networks:
       - default  
     ports:
-      - "3306:3306"
+      - "${DB_PORT}:${DB_PORT}"
+  sso:
+    image: kozlovsv78/evaluator-sso:latest
+    container_name: ${PROJECT_NAME}-sso
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile-sso
+    environment:
+      WAIT_HOSTS: ${DB_HOST}:${DB_PORT}
+      TZ: ${TZ}
+    ports:
+      - "${SSO_HTTP_PORT}:${SSO_HTTP_PORT}"
+    depends_on:
+      - db    
+  api:
+    image: kozlovsv78/evaluator-api:latest
+    container_name: ${PROJECT_NAME}-api
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile-api
+    environment:
+      WAIT_HOSTS: ${DB_HOST}:${DB_PORT}
+      TZ: ${TZ}
+    ports:
+      - "${API_HTTP_PORT}:${API_HTTP_PORT}"
+    depends_on:
+      - db
   server:
     image: kozlovsv78/evaluator-server:latest
     container_name: ${PROJECT_NAME}-server
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile-server
     environment:
-      WAIT_HOSTS: db:3306
+      WAIT_HOSTS: ${DB_HOST}:${DB_PORT}
       TZ: ${TZ}
     ports:
-      - "8001:8001"
+      - "${SERVER_GRPC_PORT}:${SERVER_GRPC_PORT}"
     depends_on:
-      - db
+      - db    
   agent1:
     image: kozlovsv78/evaluator-agent:latest
+    container_name: ${PROJECT_NAME}-agent1
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile-agent
     environment:
-      - EVAL_GO_POOL_SIZE=3
+      - EVAL_GO_POOL_SIZE
       - EVAL_GO_AGENT_NAME=Agent1
-      - WAIT_HOSTS=server:8001
+      - WAIT_HOSTS=server:${SERVER_GRPC_PORT}
     depends_on:
       - nginx
-  agent2:
-    image: kozlovsv78/evaluator-agent:latest
-    container_name: ${PROJECT_NAME}-agent2
-    environment:
-      - EVAL_GO_POOL_SIZE=2
-      - EVAL_GO_AGENT_NAME=Agent2  
-      - WAIT_HOSTS=server:8001
-    depends_on:
-      - nginx
+  #agent2:
+  #  image: kozlovsv78/evaluator-agent:latest
+  #  container_name: ${PROJECT_NAME}-agent2
+  #  build:
+  #    context: .
+  #    dockerfile: ./docker/Dockerfile-agent
+  #  environment:
+  #    - EVAL_GO_POOL_SIZE=2
+  #    - EVAL_GO_AGENT_NAME=Agent2  
+  #    - WAIT_HOSTS=server:${SERVER_GRPC_PORT}
+  #  depends_on:
+  #    - nginx
   nginx:
     image: nginx:1.21-alpine
     container_name: ${PROJECT_NAME}-nginx
     environment:
       - TZ
+      - SSO_HTTP_PORT
+      - API_HTTP_PORT
     volumes:
       - ./:/app
       - ./docker/conf/nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./docker/conf/nginx/app-nginx.conf:/etc/nginx/templates/app-nginx.conf.template
     ports:
       - "80:80"
-    depends_on:
-      - server    
 volumes:
   mysql-data:
   mysql-socket:

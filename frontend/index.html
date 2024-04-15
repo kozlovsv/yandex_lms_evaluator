@@ -12,135 +12,180 @@
 
 <body>
     <div id="app">
-        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-            <div class="container">
-                <a class="navbar-brand" href="#">Распределенный вычислитель выражений</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
-                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="collapse navbar-collapse" id="navbarNav">
-                    <ul class="navbar-nav">
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" @click="showExpressions">Выражения</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" @click="showSettings">Настройки</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" @click="showAgents">Вычислители</a>
-                        </li>
-                    </ul>
+        <div v-show="isUserAuthenticated()">
+            <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+                <div class="container">
+                    <a class="navbar-brand" href="#">Вычислитель</a>
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                        aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="collapse navbar-collapse" id="navbarNav">
+                        <ul class="navbar-nav">
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" @click="showExpressions">Выражения</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" @click="showSettings">Настройки</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" @click="showAgents">Вычислители</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" @click="logout">Выход</a>
+                            </li>
+                        </ul>
+                    </div>
+                    <span class="navbar-text ml-auto">
+                        Вы вошли как: {{ userEmail }}
+                    </span>
                 </div>
-            </div>
-        </nav>
+            </nav>
 
-        <div class="container mt-4" v-if="currentPage === 'expressions'">
+            <div class="container mt-4" v-if="currentPage === 'expressions'">
+                <div class="p-3 mb-2 bg-secondary text-white">
+                    <h2>Выражения</h2>
+                </div>
+                <h4>Добавить выражение:</h4>
+                <form @submit.prevent="addExpression">
+                    <div class="input-group mb-3">
+                        <input type="text" ref="input" autofocus class="form-control" v-model="expressionValue"
+                            placeholder="Введите выражение">
+                        <input type="submit" class="btn btn-primary" value="Добавить">
+                    </div>
+                </form>
+
+                <h4>Список выражений:</h4>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Стаус</th>
+                            <th scope="col">Выражение</th>
+                            <th scope="col">Дата добавления</th>
+                            <th scope="col">Дата результата</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="expression in expressions" :key="expression.id">
+                            <td>
+                                <span v-if="expression.status === 0" class="badge bg-info">Новый</span>
+                                <span v-if="expression.status === 1" class="badge bg-warning text-dark">В работе</span>
+                                <span v-if="expression.status === 2" class="badge bg-danger">Ошибка</span>
+                                <span v-if="expression.status === 3" class="badge bg-success">Готово</span>
+                            </td>
+                            <td>
+                                <span>{{ expression.value }} = </span>
+                                <span v-if="expression.status === 3">{{ expression.result }}</span>
+                                <span v-if="expression.status !== 3">?</span>
+                            </td>
+                            <td>{{ expression.created_at | formatDate}}</td>
+                            <td>{{ expression.updated_at | formatDate}}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+
+            <div class="container mt-4" v-else-if="currentPage === 'settings'">
+                <div class="p-3 mb-2 bg-secondary text-white">
+                    <h2>Настройки</h2>
+                </div>
+                <form>
+                    <div class="mb-3">
+                        <label for="plusTime">Время операции плюс</label>
+                        <input type="number" class="form-control" id="plusTime" v-model.number="settings.op_plus">
+                    </div>
+                    <div class="mb-3">
+                        <label for="minusTime">Время операции минус</label>
+                        <input type="number" class="form-control" id="minusTime" v-model.number="settings.op_minus">
+                    </div>
+                    <div class="mb-3">
+                        <label for="multiplyTime">Время операции умножить</label>
+                        <input type="number" class="form-control" id="multiplyTime" v-model.number="settings.op_mult">
+                    </div>
+                    <div class="mb-3">
+                        <label for="divideTime">Время операции делить</label>
+                        <input type="number" class="form-control" id="divideTime" v-model.number="settings.op_div">
+                    </div>
+                    <div class="mb-3">
+                        <label for="timeout">Время таймаута сервера</label>
+                        <input type="number" class="form-control" id="timeout"
+                            v-model.number="settings.op_agent_timeout">
+                    </div>
+                    <div class="mb-3">
+                        <label for="timeout">Время удаления сервера</label>
+                        <input type="number" class="form-control" id="timeout"
+                            v-model.number="settings.op_agent_deletetimeout">
+                    </div>
+                    <button type="submit" class="btn btn-primary" @click="saveSettings">Сохранить</button>
+                </form>
+            </div>
+
+
+            <div class="container mt-4" v-if="currentPage === 'agents'">
+                <div class="p-3 mb-2 bg-secondary text-white">
+                    <h2>Вычислители</h2>
+                </div>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Стаус</th>
+                            <th scope="col">Имя</th>
+                            <th scope="col">Дата пинга</th>
+                            <th scope="col">Текущая операция</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="agent in agents" :key="agent.name">
+                            <td>
+                                <span v-if="agent.status === 0" class="badge bg-success">Работает</span>
+                                <span v-if="agent.status === 1" class="badge bg-danger">Не доступен</span>
+                            </td>
+                            <td>{{ agent.name }}</td>
+                            <td>{{ agent.last_ping | formatDate}}</td>
+                            <td>{{ agent.current_op}}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="container mt-4" v-show="currentPage === 'login' && !isUserAuthenticated()">
             <div class="p-3 mb-2 bg-secondary text-white">
-                <h2>Выражения</h2>
+                <h2>Вход</h2>
             </div>
-            <h4>Добавить выражение:</h4>
-            <form @submit.prevent="addExpression">
-                <div class="input-group mb-3">
-                    <input type="text" ref="input" autofocus class="form-control" v-model="expressionValue"
-                        placeholder="Введите выражение">
-                    <input type="submit" class="btn btn-primary" value="Добавить">
+            <form @submit.prevent="login">
+                <div class="mb-3">
+                    <input type="email" class="form-control" v-model="credentials.email" placeholder="Email">
                 </div>
+                <div class="mb-3">
+                    <input type="password" class="form-control" v-model="credentials.password" placeholder="Пароль">
+                </div>
+                <div class="mb-3">
+                    <div v-if="errorMessage" class="alert alert-danger">{{errorMessage}}</div>
+                </div>
+                <button type="submit" class="btn btn-primary">Войти</button>
+                <a href="#" class="btn btn-success" @click="currentPage = 'register'">Зарегистрироваться</a>
             </form>
-
-            <h4>Список выражений:</h4>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th scope="col">Стаус</th>
-                        <th scope="col">Выражение</th>
-                        <th scope="col">Дата добавления</th>
-                        <th scope="col">Дата результата</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="expression in expressions" :key="expression.id">
-                        <td>
-                            <span v-if="expression.status === 0" class="badge bg-info">Новый</span>
-                            <span v-if="expression.status === 1" class="badge bg-warning text-dark">В работе</span>
-                            <span v-if="expression.status === 2" class="badge bg-danger">Ошибка</span>
-                            <span v-if="expression.status === 3" class="badge bg-success">Готово</span>
-                        </td>
-                        <td>
-                            <span>{{ expression.value }} = </span>
-                            <span v-if="expression.status === 3">{{ expression.result }}</span>
-                            <span v-if="expression.status !== 3">?</span>
-                        </td>
-                        <td>{{ expression.created_at | formatDate}}</td>
-                        <td>{{ expression.updated_at | formatDate}}</td>
-                    </tr>
-                </tbody>
-            </table>
         </div>
 
-
-        <div class="container mt-4" v-else-if="currentPage === 'settings'">
+        <div class="container mt-4" v-show="currentPage === 'register' && !isUserAuthenticated()">
             <div class="p-3 mb-2 bg-secondary text-white">
-                <h2>Настройки</h2>
+                <h2>Регистрация</h2>
             </div>
-            <form>
+            <form @submit.prevent="register">
                 <div class="mb-3">
-                    <label for="plusTime">Время операции плюс</label>
-                    <input type="number" class="form-control" id="plusTime" v-model.number="settings.op_plus">
+                    <input type="email" class="form-control" v-model="credentials.email" placeholder="Email">
                 </div>
                 <div class="mb-3">
-                    <label for="minusTime">Время операции минус</label>
-                    <input type="number" class="form-control" id="minusTime" v-model.number="settings.op_minus">
+                    <input type="password" class="form-control" v-model="credentials.password" placeholder="Пароль">
                 </div>
-                <div class="mb-3">
-                    <label for="multiplyTime">Время операции умножить</label>
-                    <input type="number" class="form-control" id="multiplyTime" v-model.number="settings.op_mult">
-                </div>
-                <div class="mb-3">
-                    <label for="divideTime">Время операции делить</label>
-                    <input type="number" class="form-control" id="divideTime" v-model.number="settings.op_div">
-                </div>
-                <div class="mb-3">
-                    <label for="timeout">Время таймаута сервера</label>
-                    <input type="number" class="form-control" id="timeout" v-model.number="settings.op_agent_timeout">
-                </div>
-                <div class="mb-3">
-                    <label for="timeout">Время удаления сервера</label>
-                    <input type="number" class="form-control" id="timeout"
-                        v-model.number="settings.op_agent_deletetimeout">
-                </div>
-                <button type="submit" class="btn btn-primary" @click="saveSettings">Сохранить</button>
+                <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+                <a href="#" class="btn btn-success" @click="currentPage = 'login'">Уже есть логин</a>
             </form>
-        </div>
-
-
-        <div class="container mt-4" v-if="currentPage === 'agents'">
-            <div class="p-3 mb-2 bg-secondary text-white">
-                <h2>Вычислители</h2>
-            </div>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th scope="col">Стаус</th>
-                        <th scope="col">Имя</th>
-                        <th scope="col">Дата пинга</th>
-                        <th scope="col">Текущая операция</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="agent in agents" :key="agent.name">
-                        <td>
-                            <span v-if="agent.status === 0" class="badge bg-success">Работает</span>
-                            <span v-if="agent.status === 1" class="badge bg-danger">Не доступен</span>
-                        </td>
-                        <td>{{ agent.name }}</td>
-                        <td>{{ agent.last_ping | formatDate}}</td>
-                        <td>{{ agent.current_op}}</td>
-                    </tr>
-                </tbody>
-            </table>
         </div>
     </div>
+
+
 
     <!-- Vue.js CDN -->
     <script src="https://unpkg.com/vue@2.6.14/dist/vue.js"></script>
@@ -158,11 +203,27 @@
             }
         });
 
-        new Vue({
+        axios.interceptors.request.use(
+            config => {
+                const token = localStorage.getItem('access_token');
+                if (token && !config.url.endsWith('/auth/login') && !config.url.endsWith('/auth/register')) {
+                    config.headers.Authorization = 'Bearer ' + token;
+                }
+                return config;
+            },
+            error => {
+                return Promise.reject(error);
+            }
+        );
+
+        window.app = new Vue({
             el: '#app',
             data: {
-                currentPage: 'expressions',
+                currentPage: localStorage.getItem('access_token') ? 'expressions' : 'login',
                 expressionValue: '',
+                errorMessage: '',
+                userEmail: localStorage.getItem('user_email'),
+                credentials: { email: 'kozlovsv78@gmail.com', password: '121178' },
                 expressions: [],
                 agents: [],
                 settings: {
@@ -175,13 +236,16 @@
                 }
             },
             mounted() {
-                this.getSettings();
+               // this.getSettings();
                 this.getExpressionList();
-                this.getAgentList();
+               // this.getAgentList();
                 setInterval(this.getExpressionList, 3000);
                 setInterval(this.getAgentList, 3000);
             },
             methods: {
+                isUserAuthenticated() {
+                    return !!localStorage.getItem('access_token');
+                },
                 showExpressions() {
                     this.currentPage = 'expressions';
                     this.getExpressionList();
@@ -195,6 +259,7 @@
                     this.getSettings();
                 },
                 getExpressionList() {
+                    if (!this.isUserAuthenticated()) { return }
                     const url = baseUrl + 'expressions';
                     axios.get(url)
                         .then(response => {
@@ -205,6 +270,7 @@
                         });
                 },
                 getAgentList() {
+                    if (!this.isUserAuthenticated()) { return }
                     const url = baseUrl + 'agents';
                     axios.get(url)
                         .then(response => {
@@ -215,6 +281,7 @@
                         });
                 },
                 getSettings() {
+                    if (!this.isUserAuthenticated()) { return }
                     const url = baseUrl + 'settings';
                     axios.get(url)
                         .then(response => {
@@ -249,9 +316,67 @@
                         .catch(error => {
                             console.log(error);
                         });
+                },
+                login() {
+                    if (this.credentials.email === '' || this.credentials.password === '') {
+                        this.errorMessage = 'Все поля обязательны для заполнения';
+                        return;
+                    }
+                    const url = 'http://127.0.0.1/auth/login';
+                    axios.post(url, this.credentials)
+                        .then(response => {
+                            localStorage.setItem('access_token', response.data.access_token);
+                            localStorage.setItem('user_email', response.data.user_email);
+                            this.userEmail = response.data.user_email
+                            this.currentPage = 'expressions';
+                            this.credentials = { email: '', password: '' };
+                            this.errorMessage = '';
+                        })
+                        .catch(error => {
+                            this.errorMessage = 'Логин и пароль неверные';
+                        });
+                },
+                register() {
+                    if (this.credentials.email === '' || this.credentials.password === '') {
+                        this.errorMessage = 'Все поля обязательны для заполнения';
+                        return;
+                    }
+                    const url = 'http://127.0.0.1/auth/register';
+                    axios.post(url, this.credentials)
+                        .then(response => {
+                            localStorage.setItem('access_token', response.data.access_token);
+                            localStorage.setItem('user_email', response.data.user_email);
+                            this.userEmail = response.data.user_email
+                            this.currentPage = 'expressions';
+                            this.credentials = { email: '', password: '' };
+                            this.errorMessage = '';
+                        })
+                        .catch(error => {
+                            this.errorMessage = 'Ошибка при регистрации.';
+                        });
+                },
+                logout() {
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('user_email');
+                    this.userEmail = '';
+                    this.currentPage = 'login';
                 }
             },
         });
+        axios.interceptors.response.use(
+            response => {
+                // просто возвращаем ответ, если всё в порядке
+                return response;
+            },
+            error => {
+                // если сервер вернул код ошибки 401, вызываем logout()
+                if (error.response.status === 401) {
+                    window.app.logout();
+                }
+                // в других случаях просто выбрасываем ошибку дальше, чтобы её можно было обработать в последующих catch
+                return Promise.reject(error);
+            }
+        );
 
         function generateIdempotencyKey() {
             return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
